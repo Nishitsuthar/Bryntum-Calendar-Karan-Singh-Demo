@@ -1,0 +1,19 @@
+.container {
+    height : 70em;
+}
+
+.b-calendar {
+    height : 100%;
+}
+
+.b-float-root {
+    z-index: 100;
+}
+
+.taskColorCls {
+    font-weight: 700;
+}
+
+.b-cal-event-wrap.b-readonly .b-event-header, .b-cal-event-wrap.b-readonly .b-cal-event-desc {
+    opacity: unset;
+}

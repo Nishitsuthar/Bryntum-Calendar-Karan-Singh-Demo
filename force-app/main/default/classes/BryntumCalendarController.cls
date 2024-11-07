@@ -50,6 +50,7 @@ public with sharing class BryntumCalendarController {
         query += ' ORDER BY buildertek__Start__c ASC';
 
         List<buildertek__Project_Task__c> projectTasks = Database.query(query);
+        System.debug('this is projectTasks'+projectTasks);
 
         return projectTasks;
     }

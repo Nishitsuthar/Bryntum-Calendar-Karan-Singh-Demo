@@ -7,18 +7,26 @@ import { RESOURCES, EVENTS, ASSIGNMENTS } from "./data/data";
 import calendarDataApex from "@salesforce/apex/BryntumCalendarController.getProjectTaskRecords";
 import { NavigationMixin } from 'lightning/navigation';
 import searchTaskWithScheduleId from "@salesforce/apex/BryntumCalendarController.searchProjectTaskRecordsBySchedule";
-import { createDataForCalendar, initialDataForVendorSearchFilter, initialDataForScheduleSearchFilter, filterVendorOnProjectSelection, filterResourceByVendor, getListOfResourceIds, getUpdatedListForVendorFilter } from "./calendar_helper";
+import { createDataForCalendar, initialDataForVendorSearchFilter, initialDataForPhaseSearchFilter, initialDataForTaskSearchFilter, initialDataForScheduleSearchFilter, filterVendorOnProjectSelection, filterResourceByVendor, filterResourceByPhase, filterResourceByTaskName, getListOfResourceIds, getUpdatedListForVendorFilter, getUpdatedListForTaskFilter } from "./calendar_helper";
 
 export default class Calendar_component extends NavigationMixin(LightningElement) {
 
-    globalCollectionForCalendarData;
+    @track globalCollectionForCalendarData;
     @track scheduleDataForSearchFilter;
+    @track phaseDataForSearchFilter;
+    @track taskDataForSearchFilter;
     @track vendorDataForSearchFilter;
     @track globalProjectCombo;
+    @track globalPhaseCombo;
     @track globalVendorCombo;
+    @track globalTaskCombo;
     @track dataLoaded = false;
     @track selectedResourcesList;
     @track assignments;
+    @track isReset = false;
+    @track selectedTaskIds = [];
+    @track globalbutton1;
+    @track globalbutton2;
 
     connectedCallback() {
         this.getCalendarDataFromServcer();
@@ -29,10 +37,19 @@ export default class Calendar_component extends NavigationMixin(LightningElement
         if (response.message === 'Success') {
             this.globalCollectionForCalendarData = createDataForCalendar(response.projectTasks);
             this.scheduleDataForSearchFilter = initialDataForScheduleSearchFilter(response.schedulesGroupByProjects);
+            this.phaseDataForSearchFilter = initialDataForPhaseSearchFilter(response.phaseListValueFromScheduleItemMap);
+            this.taskDataForSearchFilter = initialDataForTaskSearchFilter(response.taskListValueFromScheduleItem);
             this.vendorDataForSearchFilter = initialDataForVendorSearchFilter(response.vendorListWithResources);
             this.selectedResourcesList = getListOfResourceIds(this.globalCollectionForCalendarData.RESOURCES);
             this.dataLoaded = true;
+            // this.orginaldata = {...this.globalCollectionForCalendarData};
+            // console.log('This IS ORIGINAL DATA'+this.orginaldata);
+            
             console.log('calendar data :', this.globalCollectionForCalendarData);
+            console.log(response.taskListValueFromScheduleItem);
+            
+            console.log('THIS IS TASK DATA:', this.taskDataForSearchFilter);
+            
         } else {
             console.error('Error in getting data from server:', response.error);
             this.ShowToastEvent("Error in getting data from server", response.error, "error");
@@ -76,6 +93,7 @@ export default class Calendar_component extends NavigationMixin(LightningElement
         }
 
         let combo2 = this.globalVendorCombo;
+        let combo3 = this.globalTaskCombo;
 
         console.log('this is this.selectedResourcesList',this.selectedResourcesList);
         let localResourceIds = getListOfResourceIds(this.globalCollectionForCalendarData.RESOURCES);
@@ -86,7 +104,8 @@ export default class Calendar_component extends NavigationMixin(LightningElement
         // console.log('Global Collection for calendar',this.globalCollectionForCalendarData);
         // console.log('ASSIGNMENTS:', JSON.parse(JSON.stringify(ASSIGNMENTS)));
         
-        
+        this.orginaldata = {...this.globalCollectionForCalendarData}
+        var that = this;
 
         window.calendar = new bryntum.calendar.Calendar({
             appendTo: this.template.querySelector('.container'),
@@ -244,31 +263,31 @@ export default class Calendar_component extends NavigationMixin(LightningElement
                 maxEventsPerCell: 7
             },
 
-            tbar: {
-                items: {
-                    // Description between the prev and next buttons
-                    viewDescription: {
-                        weight: 350
-                    },
-                    filterByName: {
-                        type: 'textfield',
-                        weight: 650,
-                        icon: 'b-fa b-fa-filter',
-                        placeholder: 'Find tasks by name',
-                        clearable: true,
-                        keyStrokeChangeDelay: 100,
-                        triggers: {
-                            filter: {
-                                align: 'start',
-                                cls: 'b-fa b-fa-filter'
-                            }
-                        },
-
-                        // "up." means look in ownership tree. Will be found on the Calendar
-                        onChange: 'up.onNameFilterChange'
-                    },
-                }
-            },
+            // tbar: {
+            //     items: {
+            //         // Description between the prev and next buttons
+            //         viewDescription: {
+            //             weight: 350
+            //         },
+            //         filterByName: {
+            //             type: 'combo',
+            //             width: 300,
+            //             items: this.taskDataForSearchFilter,
+            //             weight: 650,
+            //             icon: 'b-fa b-fa-filter',
+            //             placeholder: 'Find tasks by name',
+            //             clearable: true,
+            //             multiSelect: true,  // Enable multi-selection
+            //             keyStrokeChangeDelay: 100,
+            //             displayField: 'text',
+            //             valueField: 'value',
+            //             // eventValues: 'Testing Tirth',
+            //             listeners: {
+            //                 change : 'up.onNameFilterChange'
+            //             },
+            //             },
+            //     }
+            // },
 
             sidebar: {
                 items: {
@@ -279,7 +298,7 @@ export default class Calendar_component extends NavigationMixin(LightningElement
                     resourceFilter: {
                         // Initially select resource IDs 2, 3 and 4
                         // selected: true,
-                        // selected: localResourceIds,
+                        selected: localResourceIds,
                         store : {
                             
                             groupers : [
@@ -317,53 +336,64 @@ export default class Calendar_component extends NavigationMixin(LightningElement
                 });
             },
 
-            onNameFilterChange({ value }) {
-                // We filter using a RegExp, so quote significant characters
-                value = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-                // A filter with an id replaces any previous filter with that id.
-                // Leave any other filters which may be in use in place.
-                calendar.eventStore.filter({
-                    id: 'eventNameFilter',
-                    filterBy: event => event.name.match(new RegExp(value, 'i'))
-                });
-            },
 
             onProjectSelected({ record }) {
                 // this.gantt.project.load(record.url);
             },
 
             onActiveItemChange({ activeItem }) {
-                this.syncResourceFilter({ source: activeItem });
+                this.syncResourceFilter({ source: activeItem , bool: true, initial: false });
+                console.log('Active Item INVOKED');
+                
             },
 
             onDateChange() {
-                this.syncResourceFilter({ source: this.activeView });
+                this.syncResourceFilter({ source: this.activeView , bool: true, initial: false});
+                console.log('Date CHANGE INVOKED');
+                
             },
 
             onBeforePrint() {
-                this.syncResourceFilter({ source: this.activeView });
+                this.syncResourceFilter({ source: this.activeView, bool: false, initial: false });
+                console.log('Before PRINT INVOKED');
+                
             },
-
+                
             onViewPaint({ firstPaint }) {
+                console.log('PAINT INVOKED');
+                
                 if (firstPaint) {
-                    this.syncResourceFilter({ source: this.activeView });
+                    this.syncResourceFilter({ source: this.activeView, bool: false, initial: true });
+                    console.log('First PAINT INVOKED');
+                    
                 }
             },
 
             onDataChange({ project, store, action, record, records, changes }) {
                 if (action != 'filter') {
-                    this.syncResourceFilter({ source: this.activeView });
+                    this.syncResourceFilter({ source: this.activeView, bool: false, initial: false });
+                    console.log('DATA CHANGE INVOKED');
                 }
+                console.log('OUTSIDE DATA CHANGE INVOKED');
+                
             },
 
-            syncResourceFilter({ source: activeView }) {
+            syncResourceFilter({ source: activeView, bool: datechange, initial: paint }) {
                 console.log("inside syncResource filter");
                 
                 try {
                     let resourceFilter = this.widgetMap.resourceFilter;
-                    // resourceFilter.selected = localResourceIds;
+                    resourceFilter.selected = localResourceIds;
                     console.log('this is widgetmap',this.widgetMap);
+                    if (activeView.type == 'agendaview') {
+                        that.globalbutton1.disabled = true;
+                        that.globalbutton2.disabled = true;
+                    }
+                    else{
+                        that.globalbutton1.disabled = false;
+                        that.globalbutton2.disabled = false;
+                    }
                     
 
                     if (activeView.isVisible) {
@@ -385,8 +415,30 @@ export default class Calendar_component extends NavigationMixin(LightningElement
                         visibleEvents.forEach(event => {
                             event.resources.forEach(r => assignedResources.add(r));
                         });
+                        console.log('HERE ARE VISIBLE EVENTS', visibleEvents);
+                        console.log('HERE ARE VISIBLE RESOURCE', assignedResources);
+                        console.log('check isReset ', that.isReset);
 
-                        combo2.items = getUpdatedListForVendorFilter(visibleEvents);
+                        if(that.isReset){
+                            combo3.items = getUpdatedListForTaskFilter(visibleEvents);
+                            that.isReset = false;
+                        }
+                        
+                        if(datechange){
+                            // console.log('GLOBAL VENDOR', this.globalVendorCombo);
+                            combo2.items = getUpdatedListForVendorFilter(visibleEvents);
+                            combo3.items = getUpdatedListForTaskFilter(visibleEvents);
+                            
+                            if(that.selectedTaskIds.length > 0){
+                                that.globalTaskCombo.disabled = true;
+                            }
+                        }
+
+                        if(paint){
+                            console.log('Paint Got Invoked');
+                            combo2.items = getUpdatedListForVendorFilter(visibleEvents);
+                            combo3.items = getUpdatedListForTaskFilter(visibleEvents);
+                        }
 
                         if (assignedResources.size == 0) {
                             // resourceFilter.selectAllItem = false;
@@ -411,6 +463,7 @@ export default class Calendar_component extends NavigationMixin(LightningElement
             }
         });
 
+
         // Adding a listener using the "on" method
         window.calendar.on('eventClick', ({ source, domEvent, date, eventElement, eventRecord, resourceRecord, fromOverflowPopup }) => {
             let recordId = eventRecord.id;
@@ -431,15 +484,19 @@ export default class Calendar_component extends NavigationMixin(LightningElement
     createProjectSelectionCombo() {
         try {
             let scheduleIds = [];
-            let selectedVendorIds;
+            let selectedVendorIds = [];
+            let selectedPhaseIds = [];
+            let selectedTaskIds = this.selectedTaskIds;
+            let that = this;
 
+            //* combo search for project and schedule
             let projectCombo = new bryntum.calendar.Combo({
                 appendTo: this.template.querySelector('.combo-container-1'),
                 width: '100%',
                 multiSelect: true,
                 cls: 'foodmenu-combo',
-                style: 'min-width: 38em;',
-                label: 'Select Project Schedules',
+                style: 'min-width: 30em;',
+                placeholder: 'Search Project Schedule',
                 displayField: 'name',
                 valueField: 'id',
                 value: [1, 5, 9],
@@ -477,37 +534,14 @@ export default class Calendar_component extends NavigationMixin(LightningElement
             });
 
             this.globalProjectCombo = projectCombo;
-            
 
-            new bryntum.calendar.Button({
-                appendTo: this.template.querySelector('.search-btn-1'),
-                icon: 'b-fa-search',
-                cls: 'b-raised',
-                text: 'Search',
-                color: 'b-blue',
-                onClick: () => {
-                    let Mask = bryntum.calendar.Mask;
-                    Mask.mask({
-                        target: this.template.querySelector('.container'),
-                        text: 'Searching...',
-                        mode: 'dark-blur'
-                    });
-
-                    if (vendorCombo.value) {
-                        vendorCombo.value = [];
-                    }
-
-                    console.log('scheduleIds before apex :', scheduleIds);
-                    this.handlerSearchTaskWithScheduleId(scheduleIds);
-                }
-            });
-
+            //* combo search for vendor
             let vendorCombo = new bryntum.calendar.Combo({
                 appendTo: this.template.querySelector('.combo-container-2'),
                 width: '100%',
                 multiSelect: true,
-                style: 'min-width: 34em;',
-                label: 'Select Vendor',
+                style: 'min-width: 30em;',
+                placeholder: 'Search Vendor',
                 items: this.vendorDataForSearchFilter,
                 listeners: {
                     select(event) {
@@ -516,11 +550,49 @@ export default class Calendar_component extends NavigationMixin(LightningElement
                 },
             });
             
-
             this.globalVendorCombo = vendorCombo;
 
-            new bryntum.calendar.Button({
-                appendTo: this.template.querySelector('.search-btn-2'),
+            //* combo search for Phases
+            let phaseCombo = new bryntum.calendar.Combo({
+                appendTo: this.template.querySelector('.combo-container-phase'),
+                width: '100%',
+                multiSelect: true,
+                style: 'min-width: 30em;',
+                placeholder: 'Search Phase',
+                items: this.phaseDataForSearchFilter, //!pass phase values
+                listeners: {
+                    select(event) {
+                        selectedPhaseIds = event.record.map(record => record.id);
+                    }
+                },
+            });
+
+            this.globalPhaseCombo = phaseCombo;
+
+            let Taskcombo = new bryntum.calendar.Combo({
+                appendTo: this.template.querySelector('.combo-container-3'),
+                width: '100%',
+                multiSelect: true,
+                style: 'min-width: 30em;',
+                placeholder: 'Search Task',
+                items: this.taskDataForSearchFilter, //!pass task values
+                listeners: {
+                    select(event) {
+                        try {
+                            selectedTaskIds = event.record.map(record => record.id);
+                            that.selectedTaskIds = JSON.parse(JSON.stringify(selectedTaskIds));
+                        } catch (error) {
+                            console.log('Error in select event:', error);
+                        }
+                    }
+                },
+            });
+
+            this.globalTaskCombo = Taskcombo;
+            
+            //* button search for project and schedule
+            let button1 = new bryntum.calendar.Button({
+                appendTo: this.template.querySelector('.search-btn-1'),
                 icon: 'b-fa-search',
                 cls: 'b-raised',
                 text: 'Search',
@@ -528,31 +600,49 @@ export default class Calendar_component extends NavigationMixin(LightningElement
                 onClick: () => {
                     try {
                         let Mask = bryntum.calendar.Mask;
-                        if (selectedVendorIds?.length > 0) {                            
-                            Mask.mask({
-                                target: this.template.querySelector('.container'),
-                                text: 'Searching...',
-                                mode: 'dark-blur'
-                            });
-                            this.handleResourceFilteringWithVendorId(selectedVendorIds);
-                        } else {
-                            Mask.mask({
-                                target: this.template.querySelector('.container'),
-                                text: 'Searching...',
-                                mode: 'dark-blur'
-                            });
-                            this.handlerSearchTaskWithScheduleId(scheduleIds)
-                            .then(()=> this.handlerSearchTaskWithScheduleId(scheduleIds))
-                            .catch(error => console.error('Something went wrong'));
-                            
-
-
-                        }
+                        Mask.mask({
+                            target: this.template.querySelector('.container'),
+                            text: 'Searching...',
+                            mode: 'dark-blur'
+                        });
+    
+                        // this.handlerSearchTaskWithScheduleId(scheduleIds);                        
+                        this.handlerSearch(scheduleIds, selectedVendorIds, selectedPhaseIds, selectedTaskIds);
                     } catch (error) {
-                        console.log('Error in search vendor button:', error);
+                        console.log('Error in search button click:', error);
                     }
                 }
             });
+
+            this.globalbutton1 = button1;
+
+            let button2 = new bryntum.calendar.Button({
+                appendTo: this.template.querySelector('.reset'),
+                cls: 'b-raised',
+                text: 'Reset',
+                color: 'b-blue',
+                onClick: () => {
+                    let Mask = bryntum.calendar.Mask;
+                    Mask.mask({
+                        target: this.template.querySelector('.container'),
+                        text: 'Reseting...',
+                        mode: 'dark-blur'
+                    });
+
+                    this.isReset = true;
+                    
+                    projectCombo.value = [];
+                    vendorCombo.value = [];
+                    phaseCombo.value = [];
+                    Taskcombo.value = [];
+                    Taskcombo.disabled = false;
+                    this.handlerSearch([], [], [], []);
+                    console.log('GLOBAL VENDOR', this.globalVendorCombo);
+                    
+                }
+            });
+
+            this.globalbutton2 = button2;
 
         } catch (error) {
             console.log('Error in createProjectSelectionCombo:', error);
@@ -580,6 +670,58 @@ export default class Calendar_component extends NavigationMixin(LightningElement
         }
     }
 
+    handlerSearch(projectScheduleIdList, vendorIdList, phaseList, taskIdList){        
+
+        console.log('taskIdList in handlerSearch: ', JSON.parse(JSON.stringify(taskIdList)));
+        
+
+        searchTaskWithScheduleId({ scheduleIdList: projectScheduleIdList })
+        .then((result) => {
+            this.processSearchResult(result, vendorIdList, phaseList, taskIdList);
+
+
+            //---------------------------------------DANGER------------------------------------------------
+
+
+            //! DO NOT TOUCH THIS IS NECESSARY AS DATA IS NOT LOADED ON UI IN FIRST TIME
+
+            //! NOTE: ALSO THIS IS NOT RECURSION IT IS JUST INVOKEING METHOD SECOND TIME
+
+            searchTaskWithScheduleId({ scheduleIdList: projectScheduleIdList })
+            .then((result) => {
+                this.processSearchResult(result, vendorIdList, phaseList, taskIdList);
+                bryntum.calendar.Mask.unmask(this.template.querySelector('.container'));
+
+            });
+        })
+        .catch((error) => {
+            this.ShowToastEvent("Error", error, "error");
+            bryntum.calendar.Mask.unmask(this.template.querySelector('.container'));
+        })
+    }
+
+    processSearchResult(result, vendorIdList, phaseList, taskIdList){
+        let filteredDataList = [];
+        this.globalVendorCombo.items = filterVendorOnProjectSelection(result.filteredVendorListBySchedule);
+        filteredDataList = createDataForCalendar(result.projectTasks);
+        if(vendorIdList.length > 0){
+            filteredDataList = filterResourceByVendor(vendorIdList, filteredDataList);
+        }
+        
+        if(phaseList.length > 0){
+            filteredDataList =  filterResourceByPhase(phaseList, filteredDataList);
+        }
+        
+        if(taskIdList.length > 0){
+            filteredDataList = filterResourceByTaskName(taskIdList, filteredDataList);
+        }
+        
+        window.calendar.project.events = filteredDataList?.EVENTS;
+        window.calendar.project.resources = filteredDataList?.RESOURCES;
+        window.calendar.project.assignments = filteredDataList?.ASSIGNMENTS;
+        this.globalCollectionForCalendarData = filteredDataList;
+    }
+
     handleResourceFilteringWithVendorId(vendorIds) {
         let vendorFilteredData = filterResourceByVendor(vendorIds, this.globalCollectionForCalendarData);
         console.log('vendorFilteredData:', vendorFilteredData);
@@ -588,6 +730,31 @@ export default class Calendar_component extends NavigationMixin(LightningElement
         window.calendar.project.resources = vendorFilteredData.RESOURCES;
         this.globalCollectionForCalendarData = vendorFilteredData;
         bryntum.calendar.Mask.unmask(this.template.querySelector('.container'));
+    }
+
+    handleResourceFilteringWithPhases(phaseNames) {
+        let phaseFilteredData = filterResourceByPhase(phaseNames, this.globalCollectionForCalendarData);
+        console.log('phaseFilteredData:', phaseFilteredData);
+        window.calendar.project.assignments = phaseFilteredData.ASSIGNMENTS;
+        window.calendar.project.events = phaseFilteredData.EVENTS;
+        window.calendar.project.resources = phaseFilteredData.RESOURCES;
+        this.globalCollectionForCalendarData = phaseFilteredData;
+        bryntum.calendar.Mask.unmask(this.template.querySelector('.container'));
+    }
+
+    handleTaskFilter(taskIds) {
+        console.log('FILTERING TASK STARTED', this.value);
+        let tasksName = [];
+        tasksName = taskIds;
+        console.log("filter implemented", tasksName);
+        let taskFilteredData = filterResourceByTaskName(tasksName, this.globalCollectionForCalendarData);
+        console.log('taskFilteredData:', taskFilteredData);
+        window.calendar.project.assignments = taskFilteredData.ASSIGNMENTS;
+        window.calendar.project.events = taskFilteredData.EVENTS;
+        window.calendar.project.resources = taskFilteredData.RESOURCES;
+        bryntum.calendar.Mask.unmask(this.template.querySelector('.container'));
+        console.log('FILTERING TASK COMPLETED');
+        console.log('filter implementation completed');
     }
 
     navigateToRecord(recordId) {

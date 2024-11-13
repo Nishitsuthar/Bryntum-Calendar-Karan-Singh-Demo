@@ -1,16 +1,14 @@
 <template>
     <lightning-card>
         <div style="display: none;">{dataLoaded}</div>
-        <div style="display: flex;justify-content: space-around;flex-direction:column;">
-            <div style="display: flex;justify-content: space-around;">
-                <div style="display: flex;">
+        <div style="display: flex;justify-content: space-around; flex-direction:column;">
+            <div style="display: flex;justify-content: flex-start; flex-wrap: wrap">
                     <div class="combo-container-1" style="margin: 1em;" lwc:dom="manual"></div>
-                    <div class="search-btn-1" style="margin: 1.2em 0.8em;cursor: pointer" lwc:dom="manual"></div>
-                </div>
-                <div style="display: flex;">
                     <div class="combo-container-2" style="margin: 1em;" lwc:dom="manual"></div>
-                    <div class="search-btn-2" style="margin: 1.2em 0.8em;cursor: pointer" lwc:dom="manual"></div>
-                </div>
+                    <div class="combo-container-phase" style="margin: 1em;" lwc:dom="manual"></div>
+                    <div class="combo-container-3" style="margin: 1em;" lwc:dom="manual"></div>
+                    <div class="search-btn-1" style="margin: 1.2em 0.8em;cursor: pointer" lwc:dom="manual"></div>
+                    <div class="reset" style="margin: 1.2em 0.8em;cursor: pointer" lwc:dom="manual"></div>
             </div>
             <div class="container" lwc:dom="manual"></div>
         </div>

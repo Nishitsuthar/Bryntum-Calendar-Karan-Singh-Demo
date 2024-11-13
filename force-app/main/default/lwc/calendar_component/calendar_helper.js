@@ -1,3 +1,5 @@
+import login from "@salesforce/apex/LightningLoginFormController.login";
+
 export function createDataForCalendar(listOfApexData) {
     let calendar = {};
     let EVENTS = [];
@@ -30,7 +32,7 @@ export function createDataForCalendar(listOfApexData) {
             if (!resourceMap.has(task.buildertek__Contractor_Resource_1__c)) {
                 let color = getNextColor();
                 resourceMap.set(task.buildertek__Contractor_Resource_1__c, color);                
-                let resObj1 = getResourceObject(task.buildertek__Contractor_Resource_1__r, color, task.buildertek__Contractor__c, 'External');
+                let resObj1 = getResourceObject(task.buildertek__Contractor_Resource_1__r, color, task.buildertek__Contractor__c, 'External', task);
                 RESOURCES.push(resObj1);
             }
             obj1 = getTaskObject(task, task.buildertek__Contractor_Resource_1__c, resourceMap, task.buildertek__Contractor_Resource_1__r.Name);
@@ -46,7 +48,7 @@ export function createDataForCalendar(listOfApexData) {
             if (!resourceMap.has(task.buildertek__Contractor_Resource_2__c)) {
                 let color = getNextColor();
                 resourceMap.set(task.buildertek__Contractor_Resource_2__c, color);
-                let resObj2 = getResourceObject(task.buildertek__Contractor_Resource_2__r, color, task.buildertek__Contractor__c, 'External');
+                let resObj2 = getResourceObject(task.buildertek__Contractor_Resource_2__r, color, task.buildertek__Contractor__c, 'External', task);
                 RESOURCES.push(resObj2);
             }
             obj1 = getTaskObject(task, task.buildertek__Contractor_Resource_2__c, resourceMap, task.buildertek__Contractor_Resource_2__r.Name);
@@ -62,7 +64,7 @@ export function createDataForCalendar(listOfApexData) {
             if (!resourceMap.has(task.buildertek__Contractor_Resource_3__c)) {
                 let color = getNextColor();
                 resourceMap.set(task.buildertek__Contractor_Resource_3__c, color);
-                let resObj3 = getResourceObject(task.buildertek__Contractor_Resource_3__r, color, task.buildertek__Contractor__c, 'External');
+                let resObj3 = getResourceObject(task.buildertek__Contractor_Resource_3__r, color, task.buildertek__Contractor__c, 'External', task);
                 RESOURCES.push(resObj3);
             }
             obj1 = getTaskObject(task, task.buildertek__Contractor_Resource_3__c, resourceMap, task.buildertek__Contractor_Resource_3__r.Name);
@@ -80,7 +82,7 @@ export function createDataForCalendar(listOfApexData) {
                 resourceMap.set(task.buildertek__Internal_Resource_1__c, color);
                 console.log('logging contractor',task);
                 
-                let resObj4 = getResourceObject(task.buildertek__Internal_Resource_1__r, color, task.buildertek__Contractor__c, 'Internal');
+                let resObj4 = getResourceObject(task.buildertek__Internal_Resource_1__r, color, task.buildertek__Contractor__c, 'Internal', task);
                 RESOURCES.push(resObj4);     
             }
             obj1 = getTaskObject(task, task.buildertek__Internal_Resource_1__c, resourceMap, task.buildertek__Internal_Resource_1__r.Name);
@@ -98,7 +100,7 @@ export function createDataForCalendar(listOfApexData) {
                 resourceMap.set(task.buildertek__Internal_Resource_3__c, color);
                 console.log('logging contractor',task);
 
-                let resObj5 = getResourceObject(task.buildertek__Internal_Resource_3__r, color, task.buildertek__Contractor__c, 'Internal');
+                let resObj5 = getResourceObject(task.buildertek__Internal_Resource_3__r, color, task.buildertek__Contractor__c, 'Internal', task);
                 RESOURCES.push(resObj5);
             }
             obj1 = getTaskObject(task, task.buildertek__Internal_Resource_3__c, resourceMap, task.buildertek__Internal_Resource_3__r.Name);
@@ -116,7 +118,7 @@ export function createDataForCalendar(listOfApexData) {
                 resourceMap.set(task.buildertek__Internal_Resource_4__c, color);
                 console.log('logging contractor',task);
 
-                let resObj6 = getResourceObject(task.buildertek__Internal_Resource_4__r, color, task.buildertek__Contractor__c, 'Internal');
+                let resObj6 = getResourceObject(task.buildertek__Internal_Resource_4__r, color, task.buildertek__Contractor__c, 'Internal', task);
                 RESOURCES.push(resObj6);
             }
             obj1 = getTaskObject(task, task.buildertek__Internal_Resource_4__c, resourceMap, task.buildertek__Internal_Resource_4__r.Name);
@@ -136,7 +138,7 @@ export function createDataForCalendar(listOfApexData) {
             if(!resourceMap.has('NoResource')){
                 let color = getNextColor();
                 resourceMap.set('NoResource', color);    
-                let resObj7 = getResourceObject('NoResource', color, undefined, "None");
+                let resObj7 = getResourceObject('NoResource', color, undefined, "None", "NoPhase");
                 RESOURCES.push(resObj7);
             }
             let obj1 = getTaskObject(task, 123 , resourceMap, undefined);
@@ -184,6 +186,7 @@ function getTaskObject(task, resourceId, resourceColorMap, resourceName) {
         "name": task.Name + ' - ' + projName + ' - ' + vendorName,
         "startDate": sDate,
         "endDate": eDate,
+        "phase": task.buildertek__Phase__c ? task.buildertek__Phase__c : 'No Phase',
         "taskDuration": task.buildertek__Duration__c,
         "dependency": task.buildertek__Dependency__c ? task.buildertek__Dependency__r.Name : 'No Dependency',
         "eventColor": resourceColorMap.get(resourceId) || getNextColor(),
@@ -231,6 +234,7 @@ function getTaskObjectMultiple(task) {
         "name": task.Name + ' - ' + projName + ' - ' + vendorName + ' - ' + name,
         "startDate": sDate,
         "endDate": eDate,
+        "phase": task.buildertek__Phase__c ? task.buildertek__Phase__c : 'No Phase',
         "taskDuration": task.buildertek__Duration__c,
         "dependency": task.buildertek__Dependency__c ? task.buildertek__Dependency__r.Name : 'No Dependency',
         "eventColor":  getNextColor(),
@@ -248,6 +252,7 @@ function getAssignmentObject(task, resourceId) {
         "resourceId": resourceId, // resourceid will be important
         "eventId": task.Id,
         "contractorId": task.buildertek__Contractor__c,
+        "phase": task.buildertek__Phase__c ? task.buildertek__Phase__c : 'No Phase',
     };
 }
 
@@ -272,7 +277,7 @@ function getNextColor() {
     return color;
 }
 
-function getResourceObject(resource, color, contractorId, type) {
+function getResourceObject(resource, color, contractorId, type, task) {
     // console.log('getResourceObject');
     
     // console.log(`Resource: ${JSON.stringify(resource)}, contractorID: ${contractorId}`);
@@ -282,7 +287,8 @@ function getResourceObject(resource, color, contractorId, type) {
             "name": "No Resource",
             "eventColor": color,
             "contractorId": contractorId,
-            "type": "No Resource"
+            "type": "No Resource",
+            "phase": "No Phase"
         }
     }
     return {
@@ -290,7 +296,8 @@ function getResourceObject(resource, color, contractorId, type) {
         "name": resource.Name,
         "eventColor": color,
         "contractorId": contractorId,
-        "type": type
+        "type": type,
+        "phase": task.buildertek__Phase__c ? task.buildertek__Phase__c : 'No Phase'
     };
 }
 
@@ -307,6 +314,30 @@ export function getUpdatedListForVendorFilter(visibleTaskList) {
             dataSet.add(task.contractorId);
         }
     });
+    console.log('proper working vendor data', data);
+    
+
+    return data;
+}
+
+export function getUpdatedListForTaskFilter(visibleTaskList) {
+    let dataSet = new Set();
+    let data = [];
+    console.log(visibleTaskList);
+    
+    visibleTaskList.forEach(task => {
+        let obj = {};
+        if (task.id && !dataSet.has(task.id)) {
+            console.log('INside loop');
+            
+            obj['value'] = task.id;
+            obj['text'] = task.name;
+            data.push(obj);
+            dataSet.add(task.id);
+        }
+    });
+    console.log('Proper Working Tasks',data);
+    
 
     return data;
 }
@@ -331,6 +362,29 @@ export function initialDataForVendorSearchFilter(vendorData) {
         let obj = {};
         obj['value'] = vendor.Id;
         obj['text'] = vendor.Name;
+        data.push(obj);
+    });
+
+    return data;
+}
+
+export function initialDataForPhaseSearchFilter(phaseData) {
+
+    const data = Object.keys(phaseData).map(key => ({
+        text: key,
+        value: phaseData[key]
+    }));
+
+    return data;
+}
+
+export function initialDataForTaskSearchFilter(taskData) {
+
+    let data = [];
+    taskData.forEach(task => {
+        let obj = {};
+        obj['value'] = task.Id;
+        obj['text'] = task.Name;
         data.push(obj);
     });
 
@@ -366,6 +420,7 @@ export function filterVendorOnProjectSelection(vendorData) {
     return data;
 }
 
+
 export function filterResourceByVendor(vendorIds, globalData) {
     console.log('Searching vendor based on Resource');
     
@@ -373,9 +428,40 @@ export function filterResourceByVendor(vendorIds, globalData) {
     let data = {};
     // console.log('globalData.RESOURCES:', JSON.stringify(globalData.RESOURCES));
     
-    data['RESOURCES'] = globalData.RESOURCES.filter(resource => vendorIds.includes(resource.contractorId));
+    data['RESOURCES'] = globalData.RESOURCES;
     data['EVENTS'] = globalData.EVENTS.filter(event => vendorIds.includes(event.contractorId));
     data['ASSIGNMENTS'] = globalData.ASSIGNMENTS.filter(assignment => vendorIds.includes(assignment.contractorId));
 
     return data;
+}
+
+export function filterResourceByPhase(phaseNames, globalData) {
+    console.log('Searching phases');
+    let data = {};
+
+    data['RESOURCES'] = globalData.RESOURCES;
+    data['EVENTS'] = globalData.EVENTS.filter(event => phaseNames.includes(event.phase));
+    data['ASSIGNMENTS'] = globalData.ASSIGNMENTS.filter(assignment => phaseNames.includes(assignment.phase));
+
+    return data;
+}
+
+export function filterResourceByTaskName(taskNames, globalData) {
+    try {
+        
+        console.log('Searching tasks', taskNames);
+        let data = {};
+        data['ASSIGNMENTS'] = globalData.ASSIGNMENTS.filter(assignment => taskNames.includes(assignment.eventId));
+        console.log('UPDATED ASSIGNMENTS'+ data['ASSIGNMENTS']);
+        data['EVENTS'] = globalData.EVENTS.filter(event => taskNames.includes(event.id));
+        console.log('UPDATED EVENTS'+ data['EVENTS']);
+        data['RESOURCES'] = globalData.RESOURCES;
+        console.log('UPDATED RESOURCES'+ data['RESOURCES']);
+        return data;
+
+        
+    } catch (error) {
+        console.log('Error in filterResourceByTaskName:', error);
+    }
+
 }
